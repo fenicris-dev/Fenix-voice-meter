@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Fênix Voice Meter</title>
+<style>
+:root{--bg:#0f1115;--card:#181b22;--tx:#f2f3f5;--mut:#8b92a0;--ok:#2ecc71;--wr:#f5b301;--bd:#ef4444;--ac:#ff6a1a;--q:#4b5563;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f4f5f7;--card:#fff;--tx:#14161a;--mut:#667085}}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:480px;margin:0 auto;padding:16px}
+h1{font-size:15px;letter-spacing:.2em;text-align:center;margin:4px 0 14px;color:var(--ac)}
+.card{background:var(--card);border-radius:18px;padding:18px;margin-bottom:12px;text-align:center;transition:background .3s}
+.db{font-size:76px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.u{color:var(--mut);margin-top:2px}
+#st{font-size:20px;font-weight:700;margin:12px 0 4px}
+#msg{color:var(--mut);min-height:20px;font-size:14px}
+.bar{position:relative;height:14px;border-radius:7px;background:rgba(128,128,128,.25);margin:14px 0 4px;overflow:hidden}
+#fill{height:100%;width:0;background:var(--ok);transition:background .3s}
+#lim{position:absolute;top:0;bottom:0;width:3px;background:var(--tx)}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;padding:10px 4px;border:0;border-radius:12px;background:var(--card);color:var(--mut);font-size:13px}
+.tabs button.on{background:var(--ac);color:#fff}
+.go{width:100%;padding:16px;font-size:17px;font-weight:700;border:0;border-radius:14px;background:var(--ac);color:#fff;margin-bottom:12px}
+.g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.g div{background:var(--card);border-radius:12px;padding:10px 4px;text-align:center}
+.g b{display:block;font-size:20px;font-variant-numeric:tabular-nums}.g span{font-size:11px;color:var(--mut)}
+label{display:flex;justify-content:space-between;font-size:14px;margin:12px 0 4px;text-align:left}
+input[type=range]{width:100%;accent-color:var(--ac)}
+.cfg{text-align:left}.cfg input[type=number]{width:80px;padding:6px;border-radius:8px;border:1px solid var(--mut);background:transparent;color:var(--tx)}
+.sm{padding:8px 12px;border:0;border-radius:10px;background:var(--ac);color:#fff}
+.note{font-size:12px;color:var(--mut);text-align:center;margin:10px 0}
+body.stealth .panel{display:none}
+body.stealth #big{min-height:80vh;display:flex;flex-direction:column;justify-content:center}
+body.stealth #big .db,body.stealth #big .bar,body.stealth #big .u{display:none}
+.hide-s{display:inline}
+</style></head><body><div class="w">
+<h1 class="panel">FÊNIX · VOICE METER</h1>
+<div class="tabs panel" id="tabs">
+<button data-m="voz">🗣️ Minha Voz</button><button data-m="amb">🏢 Ambiente</button><button data-m="trn">🎤 Treino</button></div>
+<div class="card" id="big" onclick="if(document.body.classList.contains('stealth'))toggleStealth()">
+<div class="db" id="db">--</div><div class="u">dB(A) estimado</div>
+<div id="st">⚪ PARADO</div><div id="msg">Toque em iniciar</div>
+<div class="bar"><div id="fill"></div><div id="lim"></div></div>
+<div class="u" id="info"></div></div>
+<button class="go panel" id="go">🎙 INICIAR</button>
+<div class="g panel"><div><b id="smin">--</b><span>Mínimo</span></div><div><b id="savg">--</b><span>Média (LAeq)</span></div><div><b id="smax">--</b><span>Máximo</span></div>
+<div><b id="sabv">0s</b><span>Tempo acima</span></div><div><b id="sflo">--</b><span>Ruído ambiente</span></div><div><b id="sscr">--</b><span>Consistência</span></div></div>
+<div class="card cfg panel">
+<label>Limite <b id="vl"></b></label><input type="range" id="rl" min="45" max="90">
+<label>Tolerância <b id="vt"></b></label><input type="range" id="rt" min="1" max="10">
+<label id="lb">Faixa-alvo (treino) <b id="vb"></b></label><input type="range" id="rb" min="4" max="20">
+<label>Vibrar ao alertar <input type="checkbox" id="cv"></label>
+<label>Calibração: leitura de outro medidor
+<span><input type="number" id="ref" placeholder="dB"> <button class="sm" id="cal">Calibrar</button></span></label>
+</div>
+<button class="go panel" style="background:var(--card);color:var(--tx)" onclick="toggleStealth()">👁 Modo discreto</button>
+<p class="note panel">O áudio é processado só neste aparelho e nunca é gravado nem enviado. O valor em dB é uma estimativa: calibre com um medidor de referência para maior precisão. Vibração não funciona no iPhone.</p>
+</div>
+<script>
+const $=i=>document.getElementById(i);
+let S={mode:'voz',limit:65,tol:3,band:8,cal:0,vib:true};
+try{Object.assign(S,JSON.parse(localStorage.getItem('fvm')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('fvm',JSON.stringify(S))}catch(e){}};
+let ctx,stream,an,buf,raf,run=false,lastT=0,sm=0,acc=0,hist=[],floor=35,st,overT=0,belowT=0,alerted=false,wl=null;
+function reset(){st={min:999,max:0,sumE:0,t:0,above:0,voiceT:0,inBand:0};hist=[];overT=0;belowT=0;alerted=false;sm=0}
+reset();
+function ui(){
+ $('rl').value=S.limit;$('rt').value=S.tol;$('rb').value=S.band;$('cv').checked=S.vib;
+ $('vl').textContent=S.limit+' dB';$('vt').textContent=S.tol+' s';$('vb').textContent=S.band+' dB';
+ $('lim').style.left=((S.limit-30)/60*100)+'%';
+ $('lb').style.display=S.mode==='trn'?'flex':'none';
+ document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.m===S.mode));
+ $('info').textContent=S.mode==='trn'?`Faixa-alvo: ${S.limit-S.band}–${S.limit} dB(A)`:`Seu limite: ${S.limit} dB(A)`;
+}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{S.mode=b.dataset.m;save();reset();ui()});
+[['rl','limit'],['rt','tol'],['rb','band']].forEach(([i,k])=>$(i).oninput=e=>{S[k]=+e.target.value;save();ui()});
+$('cv').onchange=e=>{S.vib=e.target.checked;save()};
+$('cal').onclick=()=>{const r=parseFloat($('ref').value);if(!r||!run)return alert('Inicie a medição e informe a leitura do outro medidor.');S.cal+=r-curDb;save()};
+let curDb=0;
+function toggleStealth(){document.body.classList.toggle('stealth')}
+$('go').onclick=async()=>{
+ if(run){stop();return}
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  const src=ctx.createMediaStreamSource(stream);
+  const hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=150;hp.Q.value=.7;
+  const pk=ctx.createBiquadFilter();pk.type='peaking';pk.frequency.value=2500;pk.Q.value=1;pk.gain.value=4;
+  const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=9000;
+  an=ctx.createAnalyser();an.fftSize=2048;buf=new Float32Array(an.fftSize);
+  src.connect(hp);hp.connect(pk);pk.connect(lp);lp.connect(an);
+  reset();run=true;lastT=performance.now();$('go').textContent='⏹ PARAR';
+  try{wl=await navigator.wakeLock.request('screen')}catch(e){}
+  raf=requestAnimationFrame(tick);
+ }catch(e){$('msg').textContent='Não foi possível acessar o microfone. Verifique a permissão.'}
+};
+function stop(){run=false;cancelAnimationFrame(raf);stream&&stream.getTracks().forEach(t=>t.stop());ctx&&ctx.close();try{wl&&wl.release()}catch(e){}
+ $('go').textContent='🎙 INICIAR';paint('q','⚪ PARADO','Medição encerrada')}
+function tick(now){
+ if(!run)return;raf=requestAnimationFrame(tick);
+ const dt=Math.min((now-lastT)/1000,.2);lastT=now;
+ an.getFloatTimeDomainData(buf);let s=0;for(let i=0;i<buf.length;i++)s+=buf[i]*buf[i];
+ sm+=(s/buf.length-sm)*Math.min(1,dt*8);
+ curDb=Math.max(10,10*Math.log10(sm+1e-12)+96+S.cal);
+ step(curDb,dt);
+}
+function step(db,dt){
+ acc+=dt;if(acc>.1){acc=0;hist.push(db);if(hist.length>300)hist.shift();
+  const a=[...hist].sort((x,y)=>x-y);floor=a[Math.floor(a.length*.1)]}
+ const voice=db>=Math.max(floor+8,40);
+ st.t+=dt;
+ if(st.t>1){st.min=Math.min(st.min,db);st.max=Math.max(st.max,db);st.sumE+=Math.pow(10,db/10)*dt}
+ const relevant=S.mode==='amb'||voice;
+ const over=relevant&&db>S.limit;
+ if(over){st.above+=dt;overT+=dt;belowT=0}else{overT=0;if(alerted)belowT+=dt}
+ if(S.mode==='trn'&&voice){st.voiceT+=dt;if(db<=S.limit&&db>=S.limit-S.band)st.inBand+=dt}
+ let c,t,m;
+ if(over&&overT>=S.tol){if(!alerted){alerted=true;if(S.vib&&navigator.vibrate)navigator.vibrate([200,100,200])}}
+ if(alerted&&belowT>=2){alerted=false}
+ if(alerted){c='bd';t='🔴 ACIMA DO LIMITE';m=S.mode==='amb'?'Ambiente acima do limite':'REDUZA UM POUCO O VOLUME'}
+ else if(over){c='wr';t='🟡 ATENÇÃO';m=`Acima do limite há ${overT.toFixed(1)} s`}
+ else if(S.mode==='trn'&&voice&&db<S.limit-S.band){c='wr';t='🟡 MUITO BAIXO';m='Aumente um pouco para entrar na faixa'}
+ else if(!relevant){c='q';t='⚪ SEM VOZ';m='Aguardando você falar'}
+ else{c='ok';t='🟢 ADEQUADO';m=belowT>0?'':'Volume dentro do esperado'}
+ if(!alerted&&belowT===0&&st.above>0&&c==='ok'&&overT===0&&m==='Volume dentro do esperado'&&st.t>0)m='Volume normalizado';
+ paint(c,t,m,db);
+ $('smin').textContent=st.min<999?st.min.toFixed(0):'--';
+ $('smax').textContent=st.max?st.max.toFixed(0):'--';
+ $('savg').textContent=st.t>1?(10*Math.log10(st.sumE/st.t)).toFixed(0):'--';
+ $('sabv').textContent=Math.round(st.above)+'s';
+ $('sflo').textContent=floor.toFixed(0);
+ $('sscr').textContent=S.mode==='trn'&&st.voiceT>2?Math.round(st.inBand/st.voiceT*100)+'%':'--';
+}
+function paint(c,t,m,db){
+ const col={ok:'--ok',wr:'--wr',bd:'--bd',q:'--q'}[c];
+ $('st').textContent=t;$('msg').textContent=m;
+ const big=$('big');big.style.background=document.body.classList.contains('stealth')?`var(${col})`:'';
+ $('fill').style.background=`var(${col})`;
+ if(db!==undefined){$('db').textContent=db.toFixed(1);$('fill').style.width=Math.max(0,Math.min(100,(db-30)/60*100))+'%'}
+}
+ui();
+</script></body></html>

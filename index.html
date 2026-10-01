@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#041273"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png">
+<title>Fênix Voice Meter</title>
+<style>
+:root{--bg:#050b3a;--card:#0b1450;--tx:#f2f3f5;--mut:#8b92a0;--ok:#2ecc71;--wr:#f5b301;--bd:#ef4444;--ac:#e6b422;--q:#4b5563;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f4f5f7;--card:#fff;--tx:#14161a;--mut:#667085}}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.w{max-width:480px;margin:0 auto;padding:16px}
+h1{font-size:15px;letter-spacing:.2em;text-align:center;margin:4px 0 4px;color:var(--ac)}
+.card{background:var(--card);border-radius:18px;padding:18px;margin-bottom:12px;text-align:center;transition:background .3s}
+.db{font-size:76px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.u{color:var(--mut);margin-top:2px}
+#st{font-size:20px;font-weight:700;margin:12px 0 4px}#msg{color:var(--mut);min-height:20px;font-size:14px}
+.bar{position:relative;height:14px;border-radius:7px;background:rgba(128,128,128,.25);margin:14px 0 4px;overflow:hidden}
+#fill{height:100%;width:0;background:var(--ok);transition:background .3s}
+.mk{position:absolute;top:0;bottom:0;width:2px;background:var(--tx)}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;padding:10px 4px;border:0;border-radius:12px;background:var(--card);color:var(--mut);font-size:13px}
+.tabs button.on{background:var(--ac);color:#041273}
+.go{width:100%;padding:16px;font-size:17px;font-weight:700;border:0;border-radius:14px;background:var(--ac);color:#041273;margin-bottom:12px}
+.g{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.g div{background:var(--card);border-radius:12px;padding:10px 4px;text-align:center}
+.g b{display:block;font-size:20px;font-variant-numeric:tabular-nums}.g span{font-size:11px;color:var(--mut)}
+label{display:flex;justify-content:space-between;font-size:14px;margin:12px 0 4px;text-align:left}
+input[type=range]{width:100%;accent-color:var(--ac)}
+select{padding:8px;border-radius:10px;background:var(--card);color:var(--tx);border:1px solid var(--mut)}
+input[type=number],input[type=text]{padding:10px;border-radius:10px;border:1px solid var(--mut);background:transparent;color:var(--tx);font-size:16px}
+.cfg{text-align:left}.cfg input[type=number]{width:80px}
+.sm{padding:8px 12px;border:0;border-radius:10px;background:var(--ac);color:#041273}
+.note{font-size:12px;color:var(--mut);text-align:center;margin:8px 0}
+.lg{font-size:12px;color:var(--mut);display:flex;gap:14px;justify-content:center;margin-bottom:6px}
+#ch{width:100%;height:150px;display:block}
+#ov{position:fixed;inset:0;background:var(--bg);display:none;z-index:9;padding-top:env(safe-area-inset-top,0px)}
+body.stealth .panel{display:none}
+body.stealth #big{min-height:80vh;display:flex;flex-direction:column;justify-content:center}
+body.stealth #big .db,body.stealth #big .bar,body.stealth #big .u{display:none}
+</style></head><body>
+<div id="ov"><div class="w"><div class="card"><h1>BEM-VINDO</h1><p>Como devo chamar você?</p>
+<input type="text" id="ni" placeholder="Seu nome" maxlength="30" style="width:100%;margin-bottom:12px"><button class="go" id="ns">Continuar</button></div></div></div>
+<div class="w">
+<h1 class="panel">FÊNIX · VOICE METER</h1>
+<p class="note panel">Olá, <b id="nm"></b> · <a href="#" id="chg" style="color:var(--ac)">trocar nome</a></p>
+<div class="tabs panel" id="tabs"><button data-m="voz">🗣️ Minha Voz</button><button data-m="amb">🏢 Ambiente</button><button data-m="trn">🎤 Treino</button></div>
+<div class="card" id="big" onclick="if(document.body.classList.contains('stealth'))toggleStealth()">
+<div class="db" id="db">--</div><div class="u" id="dbl">dB(A) estimado</div>
+<div id="st">⚪ PARADO</div><div id="msg">Toque em iniciar</div>
+<div class="bar"><div id="fill"></div><div class="mk" id="lim"></div><div class="mk" id="l1" style="background:var(--wr)"></div><div class="mk" id="l2" style="background:var(--bd)"></div></div>
+<div class="u" id="info"></div><div class="u" id="env" style="margin-top:6px"></div></div>
+<button class="go panel" id="go">🎙 INICIAR</button>
+<div class="card panel"><div class="lg"><span style="color:#3b82f6">● Ambiente</span><span style="color:var(--ac)">● Voz</span><span>┄ Limite</span></div><canvas id="ch"></canvas>
+<div class="note">Últimos 60 s. A voz é estimada subtraindo o ruído de fundo do nível total.</div></div>
+<div class="g panel"><div><b id="smin">--</b><span>Mínimo</span></div><div><b id="savg">--</b><span>Média (LAeq)</span></div><div><b id="smax">--</b><span>Máximo</span></div>
+<div><b id="sabv">0s</b><span>Tempo acima</span></div><div><b id="sflo">--</b><span>Ambiente</span></div><div><b id="sscr">--</b><span>Consistência</span></div></div>
+<div class="card cfg panel">
+<label>Tipo de limite <select id="lt"><option value="fix">Fixo</option><option value="rel">Relativo ao ambiente</option></select></label><div id="fx"><label>Limite <b id="vl"></b></label><input type="range" id="rl" min="40" max="120"></div><div id="rx"><label>Voz acima do ambiente <b id="vr"></b></label><input type="range" id="rr" min="3" max="25"></div>
+<label>Tolerância <b id="vt"></b></label><input type="range" id="rt" min="1" max="10">
+<label id="lb">Faixa-alvo (treino) <b id="vb"></b></label><input type="range" id="rb" min="4" max="20">
+<label>Vibrar ao alertar <input type="checkbox" id="cv"></label>
+<label>Sinais e voz de aviso <input type="checkbox" id="cs"></label>
+<label>Calibração: leitura de outro medidor <span><input type="number" id="ref" placeholder="dB"> <button class="sm" id="cal">Calibrar</button></span></label>
+<div class="note" style="text-align:left">Avisos: 10% acima do limite = 3 sinais; 15% acima = chamada pelo nome. Percentuais calculados sobre o valor em dB do limite.</div>
+</div>
+<button class="go panel" style="background:var(--card);color:var(--tx)" onclick="toggleStealth()">👁 Modo discreto</button>
+<p class="note panel">Fênix Voice Meter v1.2 · Áudio processado só neste aparelho; nunca é gravado nem enviado. O valor em dB é estimado: calibre com um medidor de referência. Vibração não funciona no iPhone.</p>
+</div>
+<script>
+const $=i=>document.getElementById(i);
+let S={mode:'voz',limit:65,tol:3,band:8,cal:0,vib:true,snd:true,name:'',lt:'fix',rel:12};
+try{Object.assign(S,JSON.parse(localStorage.getItem('fvm')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('fvm',JSON.stringify(S))}catch(e){}};
+let L=S.limit;
+let ctx,stream,an,buf,raf,run=false,lastT=0,sm=0,acc=0,hist=[],amb=[],vz=[],floor=35,st,overT=0,belowT=0,ep,wl=null,mute=0,nextSpeak=0,normT=0,curDb=0;
+function reset(){st={min:999,max:0,sumE:0,t:0,above:0,voiceT:0,inBand:0};hist=[];amb=[];vz=[];overT=0;belowT=0;ep={v:false,b:false};sm=0;$('env').textContent=''}
+reset();
+function ui(){
+ $('rl').value=S.limit;$('lt').value=S.lt;$('rr').value=S.rel;$('vr').textContent='+'+S.rel+' dB';$('fx').style.display=S.lt==='rel'?'none':'block';$('rx').style.display=S.lt==='rel'?'block':'none';$('rt').value=S.tol;$('rb').value=S.band;$('cv').checked=S.vib;$('cs').checked=S.snd;$('nm').textContent=S.name;
+ $('vl').textContent=S.limit+' dB';$('vt').textContent=S.tol+' s';$('vb').textContent=S.band+' dB';
+ if(S.lt!=='rel')L=S.limit;mk();
+ $('lb').style.display=S.mode==='trn'?'flex':'none';
+ document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.m===S.mode));
+ $('dbl').textContent=S.mode==='amb'?'dB(A) ambiente + voz':'dB(A) da voz estimado';
+}
+function askName(){$('ni').value=S.name;$('ov').style.display='block'}
+$('ns').onclick=()=>{const n=$('ni').value.trim();if(!n)return;S.name=n;save();$('ov').style.display='none';ui()};
+$('chg').onclick=e=>{e.preventDefault();askName()};
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{S.mode=b.dataset.m;save();reset();ui()});
+[['rl','limit'],['rt','tol'],['rb','band'],['rr','rel']].forEach(([i,k])=>$(i).oninput=e=>{S[k]=+e.target.value;save();ui()});
+$('cv').onchange=e=>{S.vib=e.target.checked;save()};$('lt').onchange=e=>{S.lt=e.target.value;save();ui()};$('cs').onchange=e=>{S.snd=e.target.checked;save()};
+$('cal').onclick=()=>{const r=parseFloat($('ref').value);if(!r||!run)return alert('Inicie a medição e informe a leitura do outro medidor.');S.cal+=r-curDb;save()};
+function toggleStealth(){document.body.classList.toggle('stealth')}
+function beeps(){if(!S.snd)return;mute=performance.now()+1500;[0,.3,.6].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=880;g.gain.value=.25;o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+.15)})}
+function speak(){if(!S.snd||!window.speechSynthesis)return;const u=new SpeechSynthesisUtterance(`${S.name}, o seu tom de voz está muito alto, reduza-o por favor!`);u.lang='pt-BR';mute=performance.now()+6000;u.onend=()=>{mute=performance.now()+700};speechSynthesis.cancel();speechSynthesis.speak(u)}
+$('go').onclick=async()=>{
+ if(run){stop();return}
+ if(!S.name){askName();return}
+ try{
+  stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
+  ctx=new (window.AudioContext||window.webkitAudioContext)();
+  const src=ctx.createMediaStreamSource(stream);
+  const hp=ctx.createBiquadFilter();hp.type='highpass';hp.frequency.value=150;hp.Q.value=.7;
+  const pk=ctx.createBiquadFilter();pk.type='peaking';pk.frequency.value=2500;pk.Q.value=1;pk.gain.value=4;
+  const lp=ctx.createBiquadFilter();lp.type='lowpass';lp.frequency.value=9000;
+  an=ctx.createAnalyser();an.fftSize=2048;buf=new Float32Array(an.fftSize);
+  src.connect(hp);hp.connect(pk);pk.connect(lp);lp.connect(an);
+  if(window.speechSynthesis)speechSynthesis.speak(new SpeechSynthesisUtterance(''));
+  reset();run=true;lastT=performance.now();$('go').textContent='⏹ PARAR';
+  try{wl=await navigator.wakeLock.request('screen')}catch(e){}
+  raf=requestAnimationFrame(tick);
+ }catch(e){$('msg').textContent='Não foi possível acessar o microfone. Verifique a permissão.'}
+};
+function stop(){run=false;cancelAnimationFrame(raf);stream&&stream.getTracks().forEach(t=>t.stop());ctx&&ctx.close();try{wl&&wl.release()}catch(e){}
+ $('go').textContent='🎙 INICIAR';paint('q','⚪ PARADO','Medição encerrada')}
+function tick(now){
+ if(!run)return;raf=requestAnimationFrame(tick);
+ const dt=Math.min((now-lastT)/1000,.2);lastT=now;
+ an.getFloatTimeDomainData(buf);let s=0;for(let i=0;i<buf.length;i++)s+=buf[i]*buf[i];
+ sm+=(s/buf.length-sm)*Math.min(1,dt*8);
+ curDb=Math.max(10,10*Math.log10(sm+1e-12)+96+S.cal);
+ step(curDb,dt);
+}
+function step(db,dt){
+ const now=performance.now(),ign=now<mute;
+ const voice=!ign&&db>=Math.max(floor+8,40);
+ const vdb=voice?10*Math.log10(Math.max(Math.pow(10,db/10)-Math.pow(10,floor/10),1e-9)):null;
+ acc+=dt;
+ if(acc>.1){acc=0;hist.push(db);if(hist.length>600)hist.shift();
+  const a=[...hist].sort((x,y)=>x-y);floor=a[Math.floor(a.length*.1)];
+  amb.push(floor);vz.push(vdb);if(amb.length>600){amb.shift();vz.shift()}draw()}
+ L=S.lt==='rel'?Math.max(40,Math.min(120,floor+S.rel)):S.limit;mk();env();
+ const lvl=S.mode==='amb'?db:(voice?vdb:db);
+ st.t+=dt;
+ if(st.t>1){st.min=Math.min(st.min,db);st.max=Math.max(st.max,db);st.sumE+=Math.pow(10,db/10)*dt}
+ const relevant=S.mode==='amb'||voice;
+ const over=!ign&&relevant&&lvl>L;
+ if(!ign){
+  if(over){st.above+=dt;overT+=dt;belowT=0}else{overT=0;belowT+=dt}
+  if(S.mode==='trn'&&voice){st.voiceT+=dt;if(lvl<=L&&lvl>=L-S.band)st.inBand+=dt}
+  if(overT>=S.tol){
+   if(!ep.v){ep.v=true;if(S.vib&&navigator.vibrate)navigator.vibrate([200,100,200])}
+   if(lvl>L*1.15){if(now>nextSpeak){speak();nextSpeak=now+10000;ep.b=true}}
+   else if(lvl>L*1.10&&!ep.b){beeps();ep.b=true}
+  }
+  if(belowT>=2&&ep.v){ep.v=false;ep.b=false;normT=now+3000}
+ }
+ let c,t,m;
+ if(ep.v){c='bd';t='🔴 ACIMA DO LIMITE';m=lvl>L*1.15?`${S.name}, reduza o tom de voz!`:'REDUZA UM POUCO O VOLUME'}
+ else if(over){c='wr';t='🟡 ATENÇÃO';m=`Acima do limite há ${overT.toFixed(1)} s`}
+ else if(S.mode==='trn'&&voice&&lvl<L-S.band){c='wr';t='🟡 MUITO BAIXO';m='Aumente um pouco para entrar na faixa'}
+ else if(!relevant){c='q';t='⚪ SEM VOZ';m='Aguardando você falar'}
+ else{c='ok';t='🟢 ADEQUADO';m=now<normT?'VOLUME NORMALIZADO':'Volume dentro do esperado'}
+ paint(c,t,m,lvl);
+ $('smin').textContent=st.min<999?st.min.toFixed(0):'--';
+ $('smax').textContent=st.max?st.max.toFixed(0):'--';
+ $('savg').textContent=st.t>1?(10*Math.log10(st.sumE/st.t)).toFixed(0):'--';
+ $('sabv').textContent=Math.round(st.above)+'s';
+ $('sflo').textContent=floor.toFixed(0);
+ $('sscr').textContent=S.mode==='trn'&&st.voiceT>2?Math.round(st.inBand/st.voiceT*100)+'%':'--';
+}
+function paint(c,t,m,db){
+ const col={ok:'--ok',wr:'--wr',bd:'--bd',q:'--q'}[c];
+ $('st').textContent=t;$('msg').textContent=m;
+ $('big').style.background=document.body.classList.contains('stealth')?`var(${col})`:'';
+ $('fill').style.background=`var(${col})`;
+ if(db!==undefined){$('db').textContent=db.toFixed(1);$('fill').style.width=Math.max(0,Math.min(100,(db-30)/90*100))+'%'}
+}
+function draw(){
+ const c=$('ch'),r=devicePixelRatio||1,w=c.width=c.clientWidth*r,h=c.height=c.clientHeight*r,x=c.getContext('2d'),cs=getComputedStyle(document.documentElement);
+ const Y=v=>h-(Math.min(120,Math.max(30,v))-30)/90*h;
+ x.setLineDash([6*r,6*r]);x.strokeStyle=cs.getPropertyValue('--mut');x.lineWidth=r;x.beginPath();x.moveTo(0,Y(L));x.lineTo(w,Y(L));x.stroke();x.setLineDash([]);x.lineWidth=2*r;
+ [[amb,'#3b82f6'],[vz,cs.getPropertyValue('--ac').trim()]].forEach(([a,col])=>{x.strokeStyle=col;x.beginPath();let pen=false;
+  a.forEach((v,i)=>{if(v==null){pen=false;return}const px=w-(a.length-1-i)/599*w;pen?x.lineTo(px,Y(v)):x.moveTo(px,Y(v));pen=true});x.stroke()});
+}
+function mk(){const p=v=>((Math.min(120,Math.max(30,v))-30)/90*100)+'%';$('lim').style.left=p(L);$('l1').style.left=p(L*1.1);$('l2').style.left=p(L*1.15);
+ $('info').textContent=S.mode==='trn'?`Faixa-alvo: ${Math.round(L-S.band)}–${Math.round(L)} dB(A)`:S.lt==='rel'?`Limite automático: ${Math.round(L)} dB(A) (ambiente + ${S.rel})`:`Seu limite: ${Math.round(L)} dB(A)`}
+function env(){
+ if(hist.length<30){$('env').textContent='';return}
+ const a=[...hist].sort((x,y)=>x-y),q=k=>a[Math.floor((a.length-1)*k)],f=q(.1),v=q(.9)-f;
+ const n=f<40?'🤫 Muito silencioso (quarto, biblioteca)':f<50?'🏠 Silencioso (casa, sala calma)':f<60?'🏢 Escritório ou casa com movimento':f<70?'🛍️ Comércio, restaurante ou rua':f<80?'🚌 Transporte público, bar ou trânsito intenso':f<90?'🎉 Festa ou bar com música alta':'⚠️ Barulho muito alto (balada, show)';
+ $('env').textContent=`Ambiente provável: ${n}${v>15?' · com variações':''}${f>=85?' · proteja a audição':''}`}
+if(!S.name)askName();ui();draw();
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script></body></html>

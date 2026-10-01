@@ -64,40 +64,26 @@ body.stealth #big .db,body.stealth #big .bar,body.stealth #big .u{display:none}
 <label>Vibrar ao alertar <input type="checkbox" id="cv"></label>
 <label>Sinais e voz de aviso <input type="checkbox" id="cs"></label>
 <label>Frase de aviso falada (use {nome})</label><input type="text" id="ph" maxlength="140" style="width:100%"><div style="display:flex;gap:8px;margin-top:8px"><button class="sm" id="pt">▶ Testar</button><button class="sm" id="pr">Restaurar padrão</button></div>
-<div style="margin-top:14px;font-weight:700">Calibração com decibelímetro</div>
-<div class="note" style="text-align:left">1) Inicie a medição. 2) Aproxime o celular do decibelímetro, com um som contínuo (ventilador, ruído ou um "aaa" sustentado). 3) Digite o valor do decibelímetro e toque em Capturar. Repita em 2 ou 3 volumes diferentes para mais precisão.</div>
-<div style="display:flex;gap:8px;align-items:center"><input type="number" id="ref" placeholder="dB oficial" step="0.1" style="flex:1"> <button class="sm" id="cap">Capturar ponto</button></div>
-<div id="pts" class="note" style="text-align:left"></div><div id="adj" class="note" style="text-align:left"></div>
-<button class="sm" id="clr">Apagar pontos</button>
+<label>Calibração: leitura de outro medidor <span><input type="number" id="ref" placeholder="dB"> <button class="sm" id="cal">Calibrar</button></span></label>
 <button class="sm" id="rs" style="margin-top:10px">Apagar configurações salvas</button>
 <div class="note" style="text-align:left">Avisos: 10% acima do limite = 3 sinais; 15% acima = chamada pelo nome. Percentuais calculados sobre o valor em dB do limite. Cores da tela: branco = adequado, amarelo = atenção, vermelho = acima do limite, roxo e vermelho alternando = mais de 10% acima.</div>
 </div>
 <button class="go panel" style="background:var(--card);color:var(--tx)" onclick="toggleStealth()">👁 Modo discreto</button>
-<p class="note panel">Fênix Voice Meter v1.5 · Áudio processado só neste aparelho; nunca é gravado nem enviado. As configurações ficam salvas só neste navegador (localStorage). O valor em dB é estimado: calibre com um medidor de referência. Vibração não funciona no iPhone.</p>
+<p class="note panel">Fênix Voice Meter v1.4 · Áudio processado só neste aparelho; nunca é gravado nem enviado. As configurações ficam salvas só neste navegador (localStorage). O valor em dB é estimado: calibre com um medidor de referência. Vibração não funciona no iPhone.</p>
 </div>
 <script>
 const $=i=>document.getElementById(i);
 const DEF='{nome}, o seu tom de voz está muito alto, reduza-o por favor!';
-let S={mode:'voz',limit:65,tol:3,band:8,cal:0,vib:true,snd:true,name:'',lt:'fix',rel:12,phrase:DEF,pts:[]};
+let S={mode:'voz',limit:65,tol:3,band:8,cal:0,vib:true,snd:true,name:'',lt:'fix',rel:12,phrase:DEF};
 const KEY='fenix-voice-meter';
 try{Object.assign(S,JSON.parse(localStorage.getItem(KEY)||localStorage.getItem('fvm')||'{}'))}catch(e){}
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
 let L=S.limit;
-function fit(){const p=S.pts;if(!p.length)return{a:1,b:S.cal||0};
- if(p.length===1)return{a:1,b:p[0].ref-p[0].raw};
- const n=p.length,mx=p.reduce((t,q)=>t+q.raw,0)/n,my=p.reduce((t,q)=>t+q.ref,0)/n;let sxx=0,sxy=0;
- p.forEach(q=>{sxx+=(q.raw-mx)**2;sxy+=(q.raw-mx)*(q.ref-my)});
- if(sxx<25)return{a:1,b:my-mx};
- const a=Math.min(1.5,Math.max(.5,sxy/sxx));return{a,b:my-a*mx}}
-let F=fit();const corr=r=>Math.max(10,F.a*r+F.b);
-let ctx,stream,an,buf,raf,run=false,lastT=0,sm=0,acc=0,hist=[],amb=[],vz=[],floor=35,st,overT=0,belowT=0,ep,wl=null,mute=0,nextSpeak=0,normT=0,curDb=0,rawNow=0,rawH=[];
-function reset(){st={min:999,max:0,sumE:0,t:0,above:0,voiceT:0,inBand:0};hist=[];amb=[];vz=[];overT=0;belowT=0;ep={v:false,b:false};sm=0;rawH=[];$('env').textContent=''}
+let ctx,stream,an,buf,raf,run=false,lastT=0,sm=0,acc=0,hist=[],amb=[],vz=[],floor=35,st,overT=0,belowT=0,ep,wl=null,mute=0,nextSpeak=0,normT=0,curDb=0;
+function reset(){st={min:999,max:0,sumE:0,t:0,above:0,voiceT:0,inBand:0};hist=[];amb=[];vz=[];overT=0;belowT=0;ep={v:false,b:false};sm=0;$('env').textContent=''}
 reset();
 function ui(){
- $('ph').value=S.phrase;
- $('pts').innerHTML=S.pts.length?S.pts.map((q,i)=>`Ponto ${i+1}: app ${q.raw.toFixed(1)} → oficial ${q.ref.toFixed(1)} dB`).join('<br>'):'Nenhum ponto capturado.';
- $('adj').textContent=S.pts.length?(F.a===1?`Ajuste atual: ${F.b>=0?'+':''}${F.b.toFixed(1)} dB em toda a escala.`:`Ajuste atual: oficial ≈ ${F.a.toFixed(2)} × leitura ${F.b>=0?'+ ':'− '}${Math.abs(F.b).toFixed(1)}`):'Sem ajuste (leitura do microfone sem correção).';
- $('rl').value=S.limit;$('lt').value=S.lt;$('rr').value=S.rel;$('vr').textContent='+'+S.rel+' dB';$('fx').style.display=S.lt==='rel'?'none':'block';$('rx').style.display=S.lt==='rel'?'block':'none';$('rt').value=S.tol;$('rb').value=S.band;$('cv').checked=S.vib;$('cs').checked=S.snd;$('nm').textContent=S.name;
+ $('ph').value=S.phrase;$('rl').value=S.limit;$('lt').value=S.lt;$('rr').value=S.rel;$('vr').textContent='+'+S.rel+' dB';$('fx').style.display=S.lt==='rel'?'none':'block';$('rx').style.display=S.lt==='rel'?'block':'none';$('rt').value=S.tol;$('rb').value=S.band;$('cv').checked=S.vib;$('cs').checked=S.snd;$('nm').textContent=S.name;
  $('vl').textContent=S.limit+' dB';$('vt').textContent=S.tol+' s';$('vb').textContent=S.band+' dB';
  if(S.lt!=='rel')L=S.limit;mk();
  $('lb').style.display=S.mode==='trn'?'flex':'none';
@@ -112,14 +98,7 @@ document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{S.mode=b.dat
 $('cv').onchange=e=>{S.vib=e.target.checked;save()};$('lt').onchange=e=>{S.lt=e.target.value;save();ui()};
 $('ph').oninput=e=>{S.phrase=e.target.value;save()};$('pr').onclick=()=>{S.phrase=DEF;save();ui()};$('pt').onclick=()=>say();
 $('rs').onclick=()=>{if(confirm('Apagar nome, limites, calibração e frase salvos neste navegador?')){try{localStorage.removeItem(KEY);localStorage.removeItem('fvm')}catch(e){}location.reload()}};$('cs').onchange=e=>{S.snd=e.target.checked;save()};
-$('cap').onclick=()=>{
- const r=parseFloat($('ref').value);
- if(!run||isNaN(r))return alert('Inicie a medição e digite o valor do decibelímetro.');
- if(rawH.length<20)return alert('Aguarde 2 segundos de medição e tente de novo.');
- const a=rawH.slice(-20),m=10*Math.log10(a.reduce((t,v)=>t+Math.pow(10,v/10),0)/a.length),sd=Math.sqrt(a.reduce((t,v)=>t+(v-m)**2,0)/a.length);
- if(sd>3)return alert('O som está oscilando demais. Use um som contínuo e tente de novo.');
- S.pts.push({raw:+m.toFixed(1),ref:r});if(S.pts.length>6)S.pts.shift();save();F=fit();$('ref').value='';ui()};
-$('clr').onclick=()=>{S.pts=[];S.cal=0;save();F=fit();ui()};
+$('cal').onclick=()=>{const r=parseFloat($('ref').value);if(!r||!run)return alert('Inicie a medição e informe a leitura do outro medidor.');S.cal+=r-curDb;save()};
 function toggleStealth(){document.body.classList.toggle('stealth')}
 function beeps(){if(!S.snd)return;mute=performance.now()+1500;[0,.3,.6].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.frequency.value=880;g.gain.value=.25;o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+.15)})}
 const txt=()=>(S.phrase.trim()||DEF).replace(/\{nome\}/gi,S.name||'');
@@ -150,7 +129,7 @@ function tick(now){
  const dt=Math.min((now-lastT)/1000,.2);lastT=now;
  an.getFloatTimeDomainData(buf);let s=0;for(let i=0;i<buf.length;i++)s+=buf[i]*buf[i];
  sm+=(s/buf.length-sm)*Math.min(1,dt*8);
- rawNow=Math.max(10,10*Math.log10(sm+1e-12)+96);curDb=corr(rawNow);
+ curDb=Math.max(10,10*Math.log10(sm+1e-12)+96+S.cal);
  step(curDb,dt);
 }
 function step(db,dt){
@@ -158,7 +137,7 @@ function step(db,dt){
  const voice=!ign&&db>=Math.max(floor+8,40);
  const vdb=voice?10*Math.log10(Math.max(Math.pow(10,db/10)-Math.pow(10,floor/10),1e-9)):null;
  acc+=dt;
- if(acc>.1){acc=0;hist.push(db);if(hist.length>600)hist.shift();rawH.push(rawNow);if(rawH.length>30)rawH.shift();
+ if(acc>.1){acc=0;hist.push(db);if(hist.length>600)hist.shift();
   const a=[...hist].sort((x,y)=>x-y);floor=a[Math.floor(a.length*.1)];
   amb.push(floor);vz.push(vdb);if(amb.length>600){amb.shift();vz.shift()}draw()}
  L=S.lt==='rel'?Math.max(40,Math.min(120,floor+S.rel)):S.limit;mk();env();

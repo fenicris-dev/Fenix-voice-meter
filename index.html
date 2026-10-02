@@ -2,14 +2,14 @@
 <html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#041273"><link rel="manifest" href="manifest.json"><link rel="icon" href="icon-192.png">
-<title>Fênix Voice Meter v1.8</title>
+<title>Fênix Voice Meter v1.9</title>
 <style>
 :root{--bg:#fff;--card:#eef1fb;--tx:#041273;--mut:#5b6385;--ok:#2ecc71;--wr:#f5b301;--bd:#ef4444;--ac:#d4a017;--q:#4b5563;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 body.s1{--bg:#ffe066;--card:rgba(255,255,255,.55)}
 body.s2{--bg:#d92d20;--card:rgba(0,0,0,.25);--tx:#fff;--mut:#ffd9d4}
 body.s3{--bg:#d92d20;--card:rgba(0,0,0,.3);--tx:#fff;--mut:#f0dcff;animation:fl .7s steps(1) infinite}
 @keyframes fl{0%{background-color:#d92d20}50%{background-color:#6a1b9a}}
-*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}html,body{overscroll-behavior-y:none}html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{transition:background-color .35s;margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 .w{max-width:480px;margin:0 auto;padding:16px}
 h1{font-size:15px;letter-spacing:.2em;text-align:center;margin:4px 0 4px;color:var(--tx)}
@@ -80,11 +80,11 @@ body.stealth #big .db,body.stealth #big .bar,body.stealth #big .u{display:none}
 <div class="note" style="text-align:left">Avisos: 10% acima do limite = 3 sinais; 15% acima = chamada pelo nome. Percentuais calculados sobre o valor em dB do limite. Cores da tela: branco = adequado, amarelo = atenção, vermelho = acima do limite, roxo e vermelho alternando = mais de 10% acima.</div>
 </div>
 <button class="go panel" style="background:var(--card);color:var(--tx)" onclick="toggleStealth()">👁 Modo discreto</button>
-<p class="note panel">Fênix Voice Meter v1.8 · Áudio processado só neste aparelho; nunca é gravado nem enviado. As configurações ficam salvas só neste navegador (localStorage). O valor em dB é estimado: calibre com um medidor de referência. Vibração não funciona no iPhone.</p>
+<p class="note panel">Fênix Voice Meter v1.9 · Áudio processado só neste aparelho; nunca é gravado nem enviado. As configurações ficam salvas só neste navegador (localStorage). O valor em dB é estimado: calibre com um medidor de referência. Vibração não funciona no iPhone.</p>
 </div>
 <script>
 const $=i=>document.getElementById(i);
-const VER='1.8';$('ver').textContent='v'+VER;
+const VER='1.9';$('ver').textContent='v'+VER;
 const DEF='{nome}, o seu tom de voz está muito alto, reduza-o por favor!';
 let S={mode:'voz',limit:65,tol:3,band:8,cal:0,vib:true,snd:true,name:'',lt:'fix',rel:12,phrase:DEF,pts:[],voz:true};
 const KEY='fenix-voice-meter';
@@ -285,6 +285,15 @@ $('hx').onclick=()=>{const h=hget();if(!h.length)return alert('Ainda não há se
  const c='data;duracao_s;modo;limite_dB;tempo_acima_s;tempo_fala_s;pct_acima;consistencia;media_dB;max_dB;ambiente_dB;ambiente\n'+h.map(r=>[new Date(r.ts).toLocaleString('pt-BR'),r.dur,r.m,r.lim,r.ab,r.vt,r.pa??'',r.sc??'',r.avg??'',r.max,r.fl,'"'+(r.env||'')+'"'].join(';')).join('\n');
  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+c],{type:'text/csv'}));a.download='fenix-voice-meter-historico.csv';a.click()};
 addEventListener('pagehide',saveSession);
+/* blindagem: a medição só para quando o usuário mandar */
+let ty=0;
+addEventListener('touchstart',e=>{ty=e.touches[0].clientY},{passive:true});
+addEventListener('touchmove',e=>{if(!run||window.scrollY>0||!e.cancelable||e.touches[0].clientY<=ty)return;
+ if(e.target.closest&&e.target.closest('input,select,textarea,button'))return;e.preventDefault()},{passive:false});
+addEventListener('beforeunload',e=>{if(run){e.preventDefault();e.returnValue=''}});
+document.addEventListener('visibilitychange',async()=>{if(!run||document.hidden)return;
+ try{wl=await navigator.wakeLock.request('screen')}catch(e){}
+ try{if(ctx&&ctx.state==='suspended')await ctx.resume()}catch(e){}});
 if(!S.name)askName();ui();draw();renderHist();
 if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script></body></html>

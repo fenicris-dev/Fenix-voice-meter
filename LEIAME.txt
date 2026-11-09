@@ -1,0 +1,13 @@
+Fênix Voice Meter v2.3 (Livro das Regras Fênix v5.6, Ficha E,F)
+
+Raiz (publique estes arquivos juntos, na mesma pasta do GitHub Pages):
+- index.html ........................ o app publicado (cópia idêntica de fenix-voice-meter-v2.3.html)
+- fenix-voice-meter-v2.3.html ....... cópia com a versão no nome, só para controle interno
+- manifest.json, sw.js .............. PWA (instalação e funcionamento offline)
+- icon-192.png, icon-512.png ........ ícones oficiais da águia Fênix
+- fenix-voice-meter-manual-v2.3.md / .pdf ... manual do usuário (também está dentro do app, em Ajuda)
+
+versoes/ (controle interno, NÃO vai para a raiz do repositório):
+- fenix-voice-meter-v2.2.html ...... versão de volta: se a v2.3 falhar, copie este arquivo por cima do index.html
+
+Os dados do usuário ficam só no aparelho. Nada muda no formato das chaves de armazenamento da v2.2.

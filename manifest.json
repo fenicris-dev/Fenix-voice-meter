@@ -1,0 +1,25 @@
+{
+ "name": "Fênix Voice Meter",
+ "short_name": "Voice Meter",
+ "description": "Medidor para educar o volume da própria voz",
+ "start_url": "./index.html",
+ "scope": "./",
+ "display": "standalone",
+ "orientation": "portrait",
+ "background_color": "#F3F4F9",
+ "theme_color": "#040798",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png",
+   "purpose": "any maskable"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}
